@@ -28,7 +28,7 @@
 (defn- find-close-bold
   [idx line]
   (let [[head & more] line
-        close-bold? #(and (= (first %) \*) (= (first (rest %)) \*) (not= (first (nthrest % 2)) \*))]
+        close-bold? #(and (= (take 2 %) '(\* \*)) (not= (first (nthrest % 2)) \*))]
     (cond
       (nil? head) nil
       (not= \space head) (if (close-bold? more) [(inc idx) (nthrest more 2)] (recur (inc idx) more))
