@@ -68,3 +68,39 @@
                 (recur (inc idx) m (conj (vec (rest prev)) c) groups)))
         nil (if (even? (count groups)) groups (vec (butlast groups)))
         (recur (inc idx) m (conj (vec (rest prev)) c) groups))))
+
+(defn- find-open-em
+  [idx line]
+  (let [[fst & m] line
+        open-em? #(not= (first %) \space)]
+    (cond
+      (nil? fst) nil
+      (= fst \*) (if (open-em? m) [idx m] (recur (inc idx) m))
+      :else (recur (inc idx) m))))
+
+(defn- find-close-em
+  [idx line]
+  (let [[fst & m] line
+        close-em? #(= (first %) \*)]
+    (cond
+      (nil? fst) nil
+      (not= fst \space) (if (close-em? m) [(inc idx) (rest m)] (recur (inc idx) m))
+      :else (recur (inc idx) m))))
+
+(defn- find-em
+  [offset line]
+  (if-let [[open-em more] (find-open-em 0 line)]
+    (if-let [[close-em more] (find-close-em 0 more)]
+      [[(+ offset open-em) (+ offset close-em open-em 1)] more])))
+
+(defn- find-ems
+  [line]
+  (loop [groups []
+         offset 0
+         line line]
+    (cond
+      (empty? line) groups
+      :else (let [[group more :as em] (find-em offset line)]
+        (if (nil? em)
+          groups
+          (recur (conj groups group) (+ 1 (last group)) more))))))
