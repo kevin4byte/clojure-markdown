@@ -135,7 +135,7 @@
     (if-let [[pos2 more] (find-close-link-2 more 0)]
       [[pos1 (+ 1 pos1 pos2)] more])))
 
-(defn- extract-content
+(defn- inner-string
   [line rage]
   (let [[s e] rage]
     (subs line (inc s) e)))
@@ -206,5 +206,37 @@
   [line]
   (let [bolded (parse-bolds line)];bold has high priority
     (parse-ems bolded)))
+(defn parse-url
+  [line]
+  (let [url (->> line (drop-while #(= \space %)) (take-while #(not= \space %)))
+        ]
+    (apply str url)))
 
+(defn parse-links
+  [line]
+  (let [links (find-links line)]
+    (if (empty? links)
+      line
+      (loop [[[open close & url :as group] & more] links
+             pos 0
+             result []
+             [head & tail] line]
+        (cond
+          (nil? head) (apply str result)
+          (= pos open) (recur links
+                              close
+                              (conj result
+                                    "<a href=\""
+                                    (parse-url (inner-string line url))
+                                    "\">"
+                                    (inner-string line [open close]))
+                              (drop close line))
+          (= pos close) (recur more
+                               (inc (last url))
+                               (conj result "</a>")
+                               (drop (inc (last url)) line))
+          :else (recur links
+                       (inc pos)
+                       (conj result head)
+                       tail))))))
 
