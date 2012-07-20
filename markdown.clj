@@ -249,26 +249,37 @@
       (= \> head) [(apply str (conj tag-text head)) more]
       :else (recur more (conj tag-text head)))))
 
-(defn tokenizer
-  [line]
-  (loop [[head & more] line
-         tokens []
-         stack []]
-    (cond
-      (nil? head) (if (empty? stack) tokens (conj tokens {:text (apply str stack)}))
-      (= \< head) (if-not (= \space (first more))
-                (let [[tag other] (find-tag more)]
-                  (if (nil? tag)
-                    (recur more tokens (conj stack head))
-                    (recur other (conj (conj tokens {:text (apply str stack)}) {:tag (str head tag)}) [])))
-                (recur more tokens (conj stack head)))
-      :else (recur more tokens (conj stack head)))))
+; I do not want to handle syntax like <a **>.
+; (defn tokenizer
+;   [line]
+;   (loop [[head & more] line
+;          tokens []
+;          stack []]
+;     (cond
+;       (nil? head) (if (empty? stack) tokens (conj tokens {:text (apply str stack)}))
+;       (= \< head) (if-not (= \space (first more))
+;                 (let [[tag other] (find-tag more)]
+;                   (if (nil? tag)
+;                     (recur more tokens (conj stack head))
+;                     (recur other (conj (conj tokens {:text (apply str stack)}) {:tag (str head tag)}) [])))
+;                 (recur more tokens (conj stack head)))
+;       :else (recur more tokens (conj stack head)))))
 
-(defn parse-line
+; (defn parse-line
+;   [line]
+;   (loop [[head & tokens] (tokenizer line)
+;          result []]
+;     (cond
+;       (nil? head) (apply str result)
+;       (head :tag) (recur tokens (conj result (head :tag)))
+;       (head :text) (recur tokens (conj result (parse-phrase-emphasis (head :text)))))))
+
+(defn parse-inline
   [line]
-  (loop [[head & tokens] (tokenizer line)
-         result []]
-    (cond
-      (nil? head) (apply str result)
-      (head :tag) (recur tokens (conj result (head :tag)))
-      (head :text) (recur tokens (conj result (parse-phrase-emphasis (head :text)))))))
+  (->> line parse-links
+            parse-bolds
+            parse-ems))
+
+(defn parse-list-item
+  [line]
+  (str "<li>" (parse-inline line) "</li>"))
