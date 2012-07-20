@@ -240,3 +240,35 @@
                        (conj result head)
                        tail))))))
 
+(defn find-tag
+  [line]
+  (loop [[head & more] line
+          tag-text []]
+    (cond
+      (nil? head) nil
+      (= \> head) [(apply str (conj tag-text head)) more]
+      :else (recur more (conj tag-text head)))))
+
+(defn tokenizer
+  [line]
+  (loop [[head & more] line
+         tokens []
+         stack []]
+    (cond
+      (nil? head) (if (empty? stack) tokens (conj tokens {:text (apply str stack)}))
+      (= \< head) (if-not (= \space (first more))
+                (let [[tag other] (find-tag more)]
+                  (if (nil? tag)
+                    (recur more tokens (conj stack head))
+                    (recur other (conj (conj tokens {:text (apply str stack)}) {:tag (str head tag)}) [])))
+                (recur more tokens (conj stack head)))
+      :else (recur more tokens (conj stack head)))))
+
+(defn parse-line
+  [line]
+  (loop [[head & tokens] (tokenizer line)
+         result []]
+    (cond
+      (nil? head) (apply str result)
+      (head :tag) (recur tokens (conj result (head :tag)))
+      (head :text) (recur tokens (conj result (parse-phrase-emphasis (head :text)))))))
