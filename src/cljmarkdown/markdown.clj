@@ -1,3 +1,5 @@
+(ns cljmarkdown.markdown)
+
 (defn letter
   ([input]
    (let[[fst & more] input]
@@ -88,6 +90,27 @@
                                (recur more (conj output fst) (- unmatch 1)))
         :else (recur more (conj output fst) unmatch)))))
 
+(defn- extract-link-text
+  [link]
+  (loop [[fst snd & more :as input] (rest link) output []]
+    (if (and (close-bracket? fst) (open-parenthesis? snd))
+      (apply str output)
+      (recur (rest input) (conj output fst)))))
+
+(defn- extract-link-url
+  [link]
+  (let [url (drop (+ 2 (count (extract-link-text link))) link)]
+    (apply str(-> url rest drop-last))))
+
+(defn- extract-strong-text
+  [text]
+  (drop-last 2 (drop 2 text)))
+
+(defn- extract-em-text
+  [text]
+  (apply str (-> text rest drop-last)))
+
+
 (defn- mk-element
   [ele etype]
   {:type etype :value ele})
@@ -116,34 +139,15 @@
                     (if (nil? p)
                       (let [[p1 r1] (em input)]
                         (if (nil? p1)
-                          (recur more output text)
+                          (recur more output (conj text fst))
                           (recur r1 (conj output (-> text dump mk-text) (mk-em p1)) [])))
                       (recur r (conj output (-> text dump mk-text) (mk-strong p)) [])))
       (open-bracket? fst) (let [[p r] (hyper-link input)]
                             (if (nil? p)
-                              (recur more output text)
+                              (recur more output (conj text fst))
                               (recur r (conj output (-> text dump mk-text) (mk-hyper-link p)) [])))
       :else (recur more output (conj text fst)))))
 
-(defn- extract-link-text
-  [link]
-  (loop [[fst snd & more :as input] (rest link) output []]
-    (if (and (close-bracket? fst) (open-parenthesis? snd))
-      (apply str output)
-      (recur (rest input) (conj output fst)))))
-
-(defn- extract-link-url
-  [link]
-  (let [url (drop (+ 2 (count (extract-link-text link))) link)]
-    (apply str(-> url rest drop-last))))
-
-(defn- extract-strong-text
-  [text]
-  (drop-last 2 (drop 2 text)))
-
-(defn- extract-em-text
-  [text]
-  (apply str (-> text rest drop-last)))
 
 (defn- add-child
   [tree node]
@@ -174,7 +178,7 @@
   [node html]
   (let [t (:type node)]
     (cond
-      (= :strong t) (str "<strong>" html "</stron>")
+      (= :strong t) (str "<strong>" html "</strong>")
       (= :em t) (str "<em>" html "</em>")
       (= :hyperlink t) (str "<a href=\"" (:url node) "\">" html "</a>")
       :else html)))
@@ -185,3 +189,7 @@
     (render' node (:value node))
     (let [html (reduce str "" (map render (:value node)))]
       (render' node html))))
+
+(defn md2html
+  [text]
+  (render (parse-line text)))
