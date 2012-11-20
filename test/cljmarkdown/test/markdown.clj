@@ -2,55 +2,60 @@
   (:use [cljmarkdown.markdown])
   (:use [clojure.test]))
 
-(deftest md-strong
-  (is (= "<strong>markdown</strong>" (md2html "**markdown**")))
-  (is (= "markdown" (md2html "markdown")))
-  (is (= "* * markdown**" (md2html "* * markdown**")))
-  (is (= "**markdown * *" (md2html "**markdown * *")))
-  (is (= "<strong>**</strong>" (md2html "******")))
-  (is (= "<strong>*</strong>" (md2html "*****")))
-  (is (= "<strong>*strong</strong>" (md2html "***strong**"))))
+(defmacro asserts
+  [tname cases]
+  `(deftest ~(symbol tname)
+            ~@(for [[excpted given] cases]
+              `(is (= ~excpted (md2html ~given))))))
 
-(deftest md-em
-  (is (= "<em>markdown</em>" (md2html "*markdown*")))
-  (is (= "<em>markdown*</em>" (md2html "*markdown**")))
-  (is (= "markdown" (md2html "markdown")))
-  (is (= "* markdown*" (md2html "* markdown*")))
-  (is (= "*markdown *" (md2html "*markdown *")))
-  (is (= "<em>*</em>" (md2html "***")))
-  (is (= "<em>strong*</em>" (md2html "*strong**"))))
+(asserts "md-strong" [["<strong>markdown</strong>" "**markdown**"]
+                       ["markdown" "markdown"]
+                       ["* * markdown**" "* * markdown**"]
+                       ["**markdown * *" "**markdown * *"]
+                       ["<strong>**</strong>" "******"]
+                       ["<strong>*</strong>" "*****"]
+                       ["<strong>*strong</strong>" "***strong**"]
+                       ])
 
-(deftest md-strong-em
-  (is (= "<strong><em>*</em></strong>" (md2html "*******")))
-  (is (= "<strong>*</strong>" (md2html "*****")))
-  (is (= "<strong>hello<em>world</em></strong>" (md2html "**hello*world***")))
-  (is (= "<em>world**</em>" (md2html "*world***")))
-  (is (= "* hello * world*" (md2html "* hello * world*"))))
+(asserts "md-em" [["<em>markdown</em>" "*markdown*"]
+                  ["<em>markdown*</em>" "*markdown**"]
+                  ["markdown" "markdown"]
+                  ["* markdown*" "* markdown*"]
+                  ["*markdown *" "*markdown *"]
+                  ["<em>*</em>" "***"]
+                  ["<em>strong*</em>" "*strong**"]
+                  ])
 
-(deftest md-link
-  (is (= "<a href=\"http://google.com\">Google</a>" (md2html "[Google](http://google.com)")))
-  (is (= "<a href=\"\">Google</a>" (md2html "[Google]()")))
-  (is (= "<a href=\"http://google.com\">Google</a>" (md2html "[Google](http://google.com)")))
-  (is (= "This is not a valid [link] " (md2html "This is not a valid [link] ")))
-  (is (= "This is not a valid [link] ()" (md2html "This is not a valid [link] ()"))))
+(asserts "md-strong-em" [["<strong><em>*</em></strong>" "*******"]
+                         ["<strong>*</strong>" "*****"]
+                         ["<strong>hello<em>world</em></strong>" "**hello*world***"]
+                         ["<em>world**</em>" "*world***"]
+                         ["* hello * world*" "* hello * world*"]
+                         ])
 
-(deftest md-line
-  (is (= "This is really <strong>fun</strong>. And you can find me at <a href=\"http://github.com/kevin4byte\"><em>Github</em></a>"
-         (md2html "This is really **fun**. And you can find me at [*Github*](http://github.com/kevin4byte)"))))
+(asserts "mk-link" [["<a href=\"http://google.com\">Google</a>" "[Google](http://google.com)"]
+                    ["<a href=\"\">Google</a>" "[Google]()"]
+                    ["<a href=\"http://google.com\">Google</a>" "[Google](http://google.com)"]
+                    ["This is not a valid [link] " "This is not a valid [link] "]
+                    ["This is not a valid [link] ()" "This is not a valid [link] ()"]
+                    ])
 
-(deftest md-escape
-  (is (= "**" (md2html "\\**")))
-  (is (= "**" (md2html "*\\*")))
-  (is (= "**\\" (md2html "**\\")))
-  (is (= "*hello*" (md2html "\\*hello*")))
-  (is (= "<em>*hello*</em>" (md2html "**hello\\**")))
-  (is (= "*literal asterisks*" (md2html "\\*literal asterisks\\*")))
-  (is (= "\\" (md2html "\\\\")) "escape \\")
-  (is (= "**two asterisks**" (md2html "\\*\\*two asterisks\\*\\*")))
-  (is (= "<strong>*hello*</strong>" (md2html "**\\*hello\\***")))
-  (is (= "[Google](http://google.com)" (md2html "\\[Google](http://google.com)")))
-  (is (= "[Google](http://google.com)" (md2html "[Google\\](http://google.com)")))
-  (is (= "[Google](http://google.com)" (md2html "[Google]\\(http://google.com)")))
-  (is (= "[Google](http://google.com)" (md2html "[Google](http://google.com\\)")))
-  (is (= "<a href=\"http://google.com\">[Google]</a>" (md2html "[[Google\\]](http://google.com)")))
-  (is (= "\\ ` + - _ * ! . { } ( ) [ ] #") (md2html "\\\\ \\` \\+ \\- \\_ \\* \\! \\. \\{ \\} \\( \\) \\[ \\] \\#")))
+(asserts "md-line" [["This is really <strong>fun</strong>. And you can find me at <a href=\"http://github.com/kevin4byte\"><em>Github</em></a>"
+         "This is really **fun**. And you can find me at [*Github*](http://github.com/kevin4byte)"]])
+
+(asserts "md-escape" [["**" "\\**"]
+                      ["**" "*\\*"]
+                      ["**\\" "**\\"]
+                      ["*hello*" "\\*hello*"]
+                      ["<em>*hello*</em>" "**hello\\**"]
+                      ["*literal asterisks*" "\\*literal asterisks\\*"]
+                      ["\\" "\\\\" "escape \\"]
+                      ["**two asterisks**" "\\*\\*two asterisks\\*\\*"]
+                      ["<strong>*hello*</strong>" "**\\*hello\\***"]
+                      ["[Google](http://google.com)" "\\[Google](http://google.com)"]
+                      ["[Google](http://google.com)" "[Google\\](http://google.com)"]
+                      ["[Google](http://google.com)" "[Google]\\(http://google.com)"]
+                      ["[Google](http://google.com)" "[Google](http://google.com\\)"]
+                      ["<a href=\"http://google.com\">[Google]</a>" "[[Google\\]](http://google.com)"]
+                      ["\\ ` + - _ * ! . { } ( ) [ ] #" "\\\\ \\` \\+ \\- \\_ \\* \\! \\. \\{ \\} \\( \\) \\[ \\] \\#"]
+                      ])
