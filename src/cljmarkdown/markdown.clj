@@ -151,6 +151,6 @@
     (let [html (reduce str "" (map render (:value node)))]
       (render' node html))))
 
-(defn md2html
+(defn parse-inline
   [text]
   (render (parse-line text)))

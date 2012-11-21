@@ -1,12 +1,12 @@
 (ns cljmarkdown.test.markdown
-  (:use [cljmarkdown.markdown])
+  (:use [cljmarkdown.markdown :only [parse-inline]])
   (:use [clojure.test]))
 
 (defmacro asserts
   [tname cases]
   `(deftest ~(symbol tname)
             ~@(for [[excpted given] cases]
-              `(is (= ~excpted (md2html ~given))))))
+              `(is (= ~excpted (parse-inline ~given))))))
 
 (asserts "md-strong" [["<strong>markdown</strong>" "**markdown**"]
                        ["markdown" "markdown"]

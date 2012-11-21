@@ -96,11 +96,11 @@
   (let [url (drop (+ 2 (count (extract-link-text link))) link)]
     (apply str(-> url rest drop-last))))
 
-(defn- extract-strong-text
+(defn extract-strong-text
   [text]
   (drop-last 2 (drop 2 text)))
 
-(defn- extract-em-text
+(defn extract-em-text
   [text]
   (apply str (-> text rest drop-last)))
 
@@ -123,12 +123,15 @@
 
 (defn ul-marker?
   [line]
-  (some #(= % (first (drop-while space? line))) "+-*"))
+  (let [[fst snd & _] (drop-while space? line)]
+    (and (space? snd)
+         (some #(= % fst) "+-*"))))
 
 (defn- ol-marker?
   [line]
   (let [[fst snd & _ ] (drop-while digit? line)]
     (and (dot? fst)
+         (not= (first line) fst)
          (space? snd))))
 
 (defn list-line?
@@ -188,10 +191,12 @@
 
 (defn extract-text-from-li
   [lines]
-  (defn- drop-spaces
+  (defn- drop-markers
     [line]
-    (apply str (rest (drop-while space? line))))
-  (map #(if (list-line? %) (drop-spaces %) %) lines))
+    (apply str (drop-while #(or (space? %)
+                                (digit? %)) line)))
+  (let [trimed (map #(if (list-line? %) (drop-markers %) %) lines)]
+    (cons (apply str (rest (first trimed))) (rest trimed))))
 
 (defn quote-inner-text
   [lines]
