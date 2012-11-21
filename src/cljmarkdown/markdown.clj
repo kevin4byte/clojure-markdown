@@ -1,13 +1,6 @@
 (ns cljmarkdown.markdown
   (:use [cljmarkdown.helper]))
 
-(defn escape
-  [line]
-  (let [[fst snd & more] line]
-    (cond
-      (and (need-escape? snd) (escape? fst)) [(str fst snd) more]
-      (nil? snd) [fst more]
-      :else [[] line])))
 
 (defn em
   "Parse an <em> elements, the line should start with *."
@@ -56,10 +49,6 @@
           (not (asterisk? (first more)))) [(apply str (conj output fst snd thd)) more]
         :else (recur (rest raw) (conj output fst))))))
 
-(def open-bracket? (lit? \[))
-(def close-bracket? (lit? \]))
-(def open-parenthesis? (lit? \())
-(def close-parenthesis? (lit? \)))
 
 (defn- hyper-link-url
   [line]
@@ -95,44 +84,7 @@
                                [nil line])
         :else (recur more (conj output fst))))))
 
-(defn- extract-link-text
-  [link]
-  (loop [[fst snd & more :as input] (rest link) output []]
-    (if (and (close-bracket? fst) (open-parenthesis? snd))
-      (apply str output)
-      (recur (rest input) (conj output fst)))))
 
-(defn- extract-link-url
-  [link]
-  (let [url (drop (+ 2 (count (extract-link-text link))) link)]
-    (apply str(-> url rest drop-last))))
-
-(defn- extract-strong-text
-  [text]
-  (drop-last 2 (drop 2 text)))
-
-(defn- extract-em-text
-  [text]
-  (apply str (-> text rest drop-last)))
-
-
-(defn- mk-element
-  [ele etype]
-  {:type etype :value ele})
-
-(def mk-em
-  (fn [value] (mk-element value :em)))
-
-(def mk-strong
-  (fn [value] (mk-element value :strong)))
-
-(def mk-hyper-link
-  (fn [value]
-    (assoc (mk-element value :hyperlink)
-           :url (extract-link-url value))))
-
-(def mk-text
-  (fn [value] (mk-element value :text)))
 
 (defn- dump [txt] (apply str txt))
 (defn- parse-line'
@@ -154,11 +106,6 @@
                               (recur more output (conj text fst))
                               (recur r (conj output (-> text dump mk-text) (mk-hyper-link p)) [])))
       :else (recur more output (conj text fst)))))
-
-
-(defn- add-child
-  [tree node]
-  (assoc tree :value (conj (:value tree) node)))
 
 (defn parse-line
   [line]

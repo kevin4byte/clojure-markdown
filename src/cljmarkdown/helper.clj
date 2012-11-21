@@ -11,6 +11,8 @@
 
 (def asterisk? (lit? \*))
 (def escape? (lit? \\))
+(def dot? (lit? \.))
+
 (defn need-escape?
   [c]
   (some #((lit? c) %)
@@ -31,13 +33,32 @@
   [c]
   (some #(= c %) (seq "=-")))
 
+(defn quote-line?
+  [line]
+  (quote? (first (drop-while space? line))))
+
 (defn setext-heading-line?
   [line]
-  (every? heading? line))
+  (and (not (nil? line))
+       (not (empty? line))
+       (every? heading? line)))
 
 (defn atx-heading-line?
   [line]
   (hash? (first line)))
+
+(defn heading-line?
+  [line]
+  (or (atx-heading-line? line)
+      (setext-heading-line? line)))
+
+(defn escape
+  [line]
+  (let [[fst snd & more] line]
+    (cond
+      (and (need-escape? snd) (escape? fst)) [(str fst snd) more]
+      (nil? snd) [fst more]
+      :else [[] line])))
 
 (defn- with-space
   [c]
@@ -58,6 +79,126 @@
           (-> line butlast)))
       line)))
 
+(def open-bracket? (lit? \[))
+(def close-bracket? (lit? \]))
+(def open-parenthesis? (lit? \())
+(def close-parenthesis? (lit? \)))
+
+(defn extract-link-text
+  [link]
+  (loop [[fst snd & more :as input] (rest link) output []]
+    (if (and (close-bracket? fst) (open-parenthesis? snd))
+      (apply str output)
+      (recur (rest input) (conj output fst)))))
+
+(defn extract-link-url
+  [link]
+  (let [url (drop (+ 2 (count (extract-link-text link))) link)]
+    (apply str(-> url rest drop-last))))
+
+(defn- extract-strong-text
+  [text]
+  (drop-last 2 (drop 2 text)))
+
+(defn- extract-em-text
+  [text]
+  (apply str (-> text rest drop-last)))
+
+
 (defn horizontal-line?
   [line]
-  (some #((with-space %) (remove-line-break line))(seq "*-_")))
+  (and (not (space-line? line))
+       (some #((with-space %) (remove-line-break line))(seq "*-_"))))
+
+(defn- indent-with?
+  [c n]
+  (fn [line]
+    (= (take n line) (repeat n c))))
+
+(defn codeblock-line?
+  [line]
+  (some #((apply indent-with? %) line)
+        [[\tab 1]
+         [\space 4]]))
+
+(defn ul-marker?
+  [line]
+  (some #(= % (first (drop-while space? line))) "+-*"))
+
+(defn- ol-marker?
+  [line]
+  (let [[fst snd & _ ] (drop-while digit? line)]
+    (and (dot? fst)
+         (space? snd))))
+
+(defn list-line?
+  [line]
+  (let [trimed (drop-while space? line)]
+    (or (ul-marker? trimed)
+        (ol-marker? trimed))))
+
+(defn- mk-element
+  [ele etype]
+  {:type etype :value ele})
+
+(def mk-em
+  (fn [value] (mk-element value :em)))
+
+(def mk-strong
+  (fn [value] (mk-element value :strong)))
+
+(def mk-hyper-link
+  (fn [value]
+    (assoc (mk-element value :hyperlink)
+           :url (extract-link-url value))))
+
+(def mk-text
+  (fn [value] (mk-element value :text)))
+
+(def mk-paragraph
+  (fn [lines] (mk-element lines :paragraph)))
+
+(def mk-heading
+  (fn [line] (mk-element line :heading)))
+
+(def mk-ul-list
+  (fn [lines] (mk-element lines :ul)))
+
+(def mk-ol-list
+  (fn [lines] (mk-element lines :ol)))
+
+(def mk-hr
+  (fn [line] (mk-element nil :hr)))
+
+(def mk-codeblock
+  (fn [lines] (mk-element lines :codeblock)))
+
+(def mk-quoteblock
+  (fn [lines] (mk-element lines :quoteblock)))
+
+(defn count-list-indent
+  [lines]
+  (count
+    (take-while space? (first (drop-while space-line? lines)))))
+
+
+(defn add-child
+  [tree node]
+  (assoc tree :value (conj (:value tree) node)))
+
+(defn extract-text-from-li
+  [lines]
+  (defn- drop-spaces
+    [line]
+    (apply str (rest (drop-while space? line))))
+  (map #(if (list-line? %) (drop-spaces %) %) lines))
+
+(defn quote-inner-text
+  [lines]
+  (defn- remove-quote
+    [line]
+    (let [[fst & more] (drop-while space? line)]
+      (if (quote? fst)
+        (apply str more)
+        line)))
+  (map remove-quote lines))
