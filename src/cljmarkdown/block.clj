@@ -44,9 +44,10 @@
   [lines]
   (loop [[line & more :as toparse] lines output []]
     (cond
-      (or (horizontal-line? line)
-          (and (space-line? line)
-               (not (quote-line? (first more))))) [output toparse]
+      (nil? line) [output nil]
+      (horizontal-line? line) [output toparse]
+      (and (space-line? (last output))
+           (not (quote-line? line))) [output toparse]
       :else (recur more (conj output line)))))
 
 (defn codeblock
@@ -69,10 +70,25 @@
 
 (defn get-list-items
   [lines]
+  (defn- non-nil-blank-line?
+    [line]
+    (and (not (nil? line)) (space-line? line)))
+
+  (defn- trim-blank-lines
+    [coll]
+    (let [lst (last coll)]
+      (cond
+        (or (nil? lst)
+            (not (space-line? lst))) coll
+        :else (recur (butlast coll)))))
+
   (let [indent (count-list-indent lines)]
     (loop [[line & more] lines output [] coll []]
       (cond
-        (nil? line) (conj output coll)
+        (nil? line) (conj output (let [lst [(-> output last last)]]
+                                   (if (non-nil-blank-line? lst)
+                                     coll
+                                     (trim-blank-lines coll))))
         (and (list-line? line)
              (= indent (count-list-indent [line]))) (if (empty? coll)
                                                       (recur more [] [line])
@@ -197,7 +213,10 @@
       (empty? html) html
       (= :root t) html
       (= :heading t) (render-heading (:value node) html)
-      (= :paragraph t) (str "<p>" html "</p>")
+      (= :paragraph t) (let [lst (last (:value node))]
+                         (if (and (space-line? lst) (not (nil? lst)))
+                         (str "<p>" html "</p>")
+                         html))
       (= :quoteblock t) (str "<blockquote>\n" html "\n</blockquote>")
       (= :codeblock t) (str "<pre><code>\n" html "\n</code></pre>")
       (= :ol t) (str "<ol>\n" html "\n</ol>")
