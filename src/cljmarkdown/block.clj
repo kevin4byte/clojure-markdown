@@ -27,10 +27,10 @@
 
 (defn heading
   [lines]
-  (let [[fst snd & _] lines]
+  (let [[fst snd & other] lines]
     (cond
-      (setext-heading-line? snd) [fst (-> lines rest rest)]
-      (atx-heading-line? fst) [fst (rest lines)]
+      (setext-heading-line? snd) [[fst snd] other]
+      (atx-heading-line? fst) [[fst] (rest lines)]
       :else [nil lines])))
 
 (defn horizontal
@@ -60,8 +60,7 @@
   (loop [[fst & more :as toparse] lines output []]
     (cond
       (nil? fst) [output nil]
-      (or (horizontal-line? fst)
-          (codeblock-line? fst)) [output toparse]
+      (horizontal-line? fst) [output toparse]
       (or (space-line? fst)
           (list-line? fst)) (recur more (conj output fst))
       (and (not (space? (first fst)))
@@ -92,8 +91,8 @@
        (codeblock-line? line) (let [[o m] (codeblock toparse)]
                                 (recur m (conj output (mk-codeblock o))))
        (horizontal-line? line) (recur more (conj output (mk-hr line)))
-       (atx-heading-line? line)(recur more (conj output (mk-heading line)))
-       (setext-heading-line? (first more)) (recur (rest more) (conj output (mk-heading line)))
+       (atx-heading-line? line)(recur more (conj output (mk-heading [line])))
+       (setext-heading-line? (first more)) (recur (rest more) (conj output (mk-heading [line (first more)])))
        (quote-line? line) (let [[o m] (blockquote toparse)]
                             (recur m (conj output (mk-quoteblock o))))
        (list-line? line) (let [[o m] (list-block toparse)]
@@ -142,7 +141,53 @@
   (let [items (get-list-items lines)]
     (map #(update-type (-> % extract-text-from-li nested-parse)) items)))
 
+(defn- hash-count
+  [line]
+  (count (take-while hash? (take 6 line))))
 
+(defn- atex-heading-tag
+  [line]
+  (let [hash-count (hash-count line)]
+    (str "h" hash-count)))
+
+(defn- setext-heading-tag
+  [line]
+  (if (some #(= \= %) line)
+    "h1"
+    "h2"))
+
+(defn- trim
+  [line n]
+  (loop [trimed (drop n line)]
+    (if (hash? (last trimed))
+      (recur (butlast trimed))
+      (apply str trimed))))
+
+(defn- trim-hash
+  [line]
+  (let [hc (hash-count line)]
+    (if (> hc 6)
+      (trim line 6)
+      (trim line hc))))
+
+(defn- render-heading
+  [lines html]
+  (let [[fst snd] lines]
+    (let [tag (if (nil? snd)
+                (atex-heading-tag fst)
+                (setext-heading-tag snd))]
+      (str "<" tag ">" (trim-hash html) "</" tag ">"))))
+
+(defn- drop-code-indent
+  [line]
+  (let [fst (first line)]
+    (cond
+      (= \space fst) (drop 4 line)
+      :else (drop 2 line))))
+
+(defn- render-codeblock
+  [lines]
+  (map (apply str #(drop-code-indent %)) lines))
 
 (defn- render'
   [node html]
@@ -151,7 +196,7 @@
       (= :hr t) "<hr/>"
       (empty? html) html
       (= :root t) html
-      (= :heading t) (str "<h1>" html "</h1>")
+      (= :heading t) (render-heading (:value node) html)
       (= :paragraph t) (str "<p>" html "</p>")
       (= :quoteblock t) (str "<blockquote>\n" html "\n</blockquote>")
       (= :codeblock t) (str "<pre><code>\n" html "\n</code></pre>")
@@ -164,13 +209,14 @@
   (let [t (:type node) v (:value node)]
     (cond
       (= t :paragraph) (render' node
-                               (apply str 
+                               (apply str
                                       (join \newline
                                             (map parse-inline v))))
       (= :heading t) (render' node (apply str
-                                          (parse-inline v)))
-      (or (= :codeblock t)
-          (= :hr t)) (render' node (apply str (join \newline v)))
+                                          (parse-inline (v 0))))
+      (= :codeblock t) (render' node (apply str (join \newline
+                                                      (map #(apply str (drop 4 %))v))))
+      (= :hr t) (render' node nil)
       :else (let [html (apply str (join \newline (map render v)))]
               (render' node html)))))
 

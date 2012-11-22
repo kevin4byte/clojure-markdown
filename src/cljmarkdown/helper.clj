@@ -162,7 +162,7 @@
   (fn [lines] (mk-element lines :paragraph)))
 
 (def mk-heading
-  (fn [line] (mk-element line :heading)))
+  (fn [lines] (mk-element lines :heading)))
 
 (def mk-ul-list
   (fn [lines] (mk-element lines :ul)))
@@ -192,10 +192,14 @@
 (defn extract-text-from-li
   [lines]
   (defn- drop-markers
-    [line]
-    (apply str (drop-while #(or (space? %)
-                                (digit? %)) line)))
-  (let [trimed (map #(if (list-line? %) (drop-markers %) %) lines)]
+    [line indent]
+    (if (every? space? (take (+ 1 indent) line))
+      (apply str (drop indent line))
+      (apply str (drop-while #(or (space? %)
+                                  (digit? %)) line))))
+  (let [indent (count-list-indent lines)
+        trimed (map #(if (list-line? %)
+                       (drop-markers % indent) %) lines)]
     (cons (apply str (rest (first trimed))) (rest trimed))))
 
 (defn quote-inner-text
