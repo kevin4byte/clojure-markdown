@@ -84,6 +84,7 @@
 (def open-parenthesis? (lit? \())
 (def close-parenthesis? (lit? \)))
 (def !? (lit? \!))
+(def code? (lit? \`))
 
 (defn extract-link-text
   [line]
@@ -158,6 +159,9 @@
 
 (def mk-em
   (fn [value] (mk-element value :em)))
+
+(def mk-code
+  (fn [value] (mk-element value :code)))
 
 (def mk-strong
   (fn [value] (mk-element value :strong)))

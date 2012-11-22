@@ -26,6 +26,20 @@
           (not (asterisk? (first more)))) [(apply str (conj output fst snd)) more]
         :else (recur (rest raw) (conj output fst))))))
 
+(defn code
+  "Parse an <em> elements, the line should start with *."
+  [line]
+  (defn- count-ticks
+    [line] (count (take-while code? line)))
+  (let [ticks (count-ticks line)]
+    (loop [[fst & more :as raw] (drop ticks line) output []]
+        (cond
+          (nil? fst) [nil line]
+          (= ticks (count-ticks (take (+ 1 ticks) raw))) [(apply str output) (drop ticks raw)]
+          :else (recur more (conj output fst))))))
+
+
+
 (defn strong
   [line]
   (loop [[fst snd thd & more :as raw] line output []]
@@ -93,6 +107,10 @@
       (nil? fst) [(conj output (mk-text (dump text))) nil]
       (escape? fst) (let [[esc more] (escape input)]
                       (recur more output (conj text esc)))
+      (code? fst) (let [[p r] (code input)]
+                    (if (nil? p)
+                      (recur more output (conj text fst))
+                      (recur r (conj output (-> text dump mk-text) (mk-code p)) [])))
       (asterisk? fst) (let [[p r] (strong input)]
                         (if (nil? p)
                           (let [[p1 r1] (em input)]
@@ -142,13 +160,14 @@
   [node html]
   (let [t (:type node)]
     (cond
+      (= :code t) (str "<code>" html "</code>")
       (= :strong t) (str "<strong>" html "</strong>")
       (= :em t) (str "<em>" html "</em>")
       (= :hyperlink t) (str "<a href=\"" (:url node) "\">" html "</a>")
       (= :image t) (str "<img alt=\"" (extract-link-text (:value node)) "\" src=\"" (:url node) "\">")
       :else html)))
 
-(defn render
+(defn- render
   [node]
   (if (string? (:value node))
     (render' node (escape' (:value node)))

@@ -10,6 +10,7 @@ A practice project of clojure(http://clojure.org). Not sure I can make it finall
 * Parse `strong` and `em` tags. Only support `*` form for now.
 * Find links with form `[text](url title)` form.
 * Handle escaping
+* Also can insert backticks ``` `look at this` ``` Cool!
 
 
 #### Reference
