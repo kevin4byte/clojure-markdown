@@ -56,6 +56,6 @@
                       ["[Google](http://google.com)" "[Google\\](http://google.com)"]
                       ["[Google](http://google.com)" "[Google]\\(http://google.com)"]
                       ["[Google](http://google.com)" "[Google](http://google.com\\)"]
-                      ["<a href=\"http://google.com\">[Google]</a>" "[[Google\\]](http://google.com)"]
+                      ["<a href=\"http://google.com\">[Google]</a>" "[\\[Google\\]](http://google.com)"]
                       ["\\ ` + - _ * ! . { } ( ) [ ] #" "\\\\ \\` \\+ \\- \\_ \\* \\! \\. \\{ \\} \\( \\) \\[ \\] \\#"]
                       ])
