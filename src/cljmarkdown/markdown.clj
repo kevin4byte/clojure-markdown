@@ -67,22 +67,23 @@
 
 (defn hyper-link
   [line]
-  (loop [[fst & more :as input] line output []]
+  (loop [[fst & more :as input] line output [] unmatch 0]
     (if (empty? output)
       (cond
-        (open-bracket? fst) (recur more (conj output fst))
+        (open-bracket? fst) (recur more (conj output fst) 1)
         :else [nil line])
       (cond
         (nil? fst) [nil line]
         (escape? fst) (let [[esc other] (escape input)]
-                        (recur other (conj output esc)))
-        (close-bracket? fst) (if (open-parenthesis? (first more))
+                        (recur other (conj output esc) unmatch))
+        (open-bracket? fst) (recur more (conj output fst) (+ unmatch 1))
+        (close-bracket? fst) (if (and (zero? (- unmatch 1)) (open-parenthesis? (first more)))
                                (let [op (hyper-link-url more)]
                                  (if (nil? (first op))
                                    [nil line]
                                    [(apply str (conj output fst (first op))) (last op)]))
-                               [nil line])
-        :else (recur more (conj output fst))))))
+                               (recur more (conj output fst) (- unmatch 1)))
+        :else (recur more (conj output fst) unmatch)))))
 
 
 

@@ -85,11 +85,22 @@
 (def close-parenthesis? (lit? \)))
 
 (defn extract-link-text
-  [link]
-  (loop [[fst snd & more :as input] (rest link) output []]
-    (if (and (close-bracket? fst) (open-parenthesis? snd))
-      (apply str output)
-      (recur (rest input) (conj output fst)))))
+  [line]
+  (loop [[fst & more :as input] line output [] unmatch 0]
+    (if (empty? output)
+      (cond
+        (open-bracket? fst) (recur more (conj output fst) 1)
+        :else nil)
+      (cond
+        (nil? fst) nil
+        (escape? fst) (let [[esc other] (escape input)]
+                        (recur other (conj output esc) unmatch))
+        (open-bracket? fst) (recur more (conj output fst) (+ unmatch 1))
+        (close-bracket? fst) (if (and (zero? (- unmatch 1)) (open-parenthesis? (first more)))
+                               (apply str (rest output))
+                               (recur more (conj output fst) (- unmatch 1)))
+        :else (recur more (conj output fst) unmatch)))))
+
 
 (defn extract-link-url
   [link]
