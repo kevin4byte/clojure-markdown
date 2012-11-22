@@ -83,6 +83,7 @@
 (def close-bracket? (lit? \]))
 (def open-parenthesis? (lit? \())
 (def close-parenthesis? (lit? \)))
+(def !? (lit? \!))
 
 (defn extract-link-text
   [line]
@@ -164,6 +165,10 @@
 (def mk-hyper-link
   (fn [value]
     (assoc (mk-element value :hyperlink)
+           :url (extract-link-url value))))
+(def mk-image
+  (fn [value]
+    (assoc (mk-element value :image)
            :url (extract-link-url value))))
 
 (def mk-text

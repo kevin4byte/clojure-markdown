@@ -85,8 +85,6 @@
                                (recur more (conj output fst) (- unmatch 1)))
         :else (recur more (conj output fst) unmatch)))))
 
-
-
 (defn- dump [txt] (apply str txt))
 (defn- parse-line'
   [line]
@@ -102,6 +100,10 @@
                               (recur more output (conj text fst))
                               (recur r1 (conj output (-> text dump mk-text) (mk-em p1)) [])))
                           (recur r (conj output (-> text dump mk-text) (mk-strong p)) [])))
+      (and (!? fst) (open-bracket? (first more))) (let [[p r] (hyper-link more)]
+                                                    (if (nil? p)
+                                                      (recur more output (conj text fst))
+                                                      (recur r (conj output (-> text dump mk-text) (mk-image p)) [])))
       (open-bracket? fst) (let [[p r] (hyper-link input)]
                             (if (nil? p)
                               (recur more output (conj text fst))
@@ -143,6 +145,7 @@
       (= :strong t) (str "<strong>" html "</strong>")
       (= :em t) (str "<em>" html "</em>")
       (= :hyperlink t) (str "<a href=\"" (:url node) "\">" html "</a>")
+      (= :image t) (str "<img alt=\"" (extract-link-text (:value node)) "\" src=\"" (:url node) "\">")
       :else html)))
 
 (defn render
